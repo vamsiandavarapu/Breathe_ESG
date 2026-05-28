@@ -1,0 +1,15 @@
+Report ID,Employee ID,Travel Date,Expense Type,Origin,Destination,Distance(km),Amount,Currency,Vendor,Class,Nights,City,Country
+RPT-001,EMP-101,2024-01-10,Air Travel,BOM,LHR,,85000,INR,Air India,Economy,,,
+RPT-001,EMP-101,2024-01-10,Hotel,,,,14500,INR,Marriott London,,5,London,GB
+RPT-001,EMP-101,2024-01-15,Taxi,,,45,2200,INR,Uber UK,,,London,GB
+RPT-002,EMP-102,2024-01-12,Air Travel,DEL,DXB,,28000,INR,Emirates,Business,,,
+RPT-002,EMP-102,2024-01-12,Hotel,,,,9800,INR,Hilton Dubai,,2,Dubai,AE
+RPT-003,EMP-103,2024-01-18,Air Travel,BLR,BOM,,5400,INR,IndiGo,Economy,,,
+RPT-004,EMP-104,2024-01-20,Air Travel,HYD,DEL,,6200,INR,Air India,Economy,,,
+RPT-004,EMP-104,2024-01-20,Taxi,,,28,850,INR,Ola,,,,
+RPT-005,EMP-105,2024-01-22,Air Travel,BOM,NRT,,145000,INR,Japan Airlines,Business,,,
+RPT-005,EMP-105,2024-01-22,Hotel,,,,22000,INR,Hyatt Tokyo,,4,Tokyo,JP
+RPT-006,EMP-106,2024-01-25,Ground Transport,,,,3200,INR,Train,,,Mumbai,IN
+RPT-007,EMP-107,2024-02-01,Air Travel,DEL,LHR,,89000,INR,British Airways,First,,,
+RPT-007,EMP-107,2024-02-01,Hotel,,,,18000,INR,The Dorchester,,3,London,GB
+RPT-008,EMP-108,2024-02-05,Taxi,,,22,1100,INR,Uber,,,Hyderabad,IN

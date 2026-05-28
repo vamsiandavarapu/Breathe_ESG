@@ -1,0 +1,257 @@
+"""
+SAP Fuel & Procurement Parser
+
+WHY FLAT FILE: SAP has many export mechanisms. We chose flat file (pipe-delimited)
+because:
+1. IDoc requires SAP middleware (XI/PI/CPI) — most clients can't expose this externally
+2. OData services require SAP Gateway configuration and firewall exceptions
+3. BAPI calls need RFC connections — too much IT dependency for onboarding
+4. Flat file: the client's SAP Basis admin runs transaction SE16N or MB52, exports CSV.
+   Takes 5 minutes. No IT project required. That's the realistic mode for new clients.
+
+WHAT WE'RE MODELING: SAP MM (Materials Management) goods receipt records.
+Transaction MB52 gives warehouse stocks. Transaction ME2M gives purchase orders.
+We process ME2M-style exports — purchase order history with quantities.
+
+REAL SAP FIELD NAMES (localized column headers in German is common):
+  MANDT   = Client (always 100 in single-client systems)
+  BUKRS   = Buchungskreis (Company Code)
+  WERKS   = Werk (Plant) 
+  MATNR   = Materialnummer (Material Number)
+  MENGE   = Menge (Quantity)
+  MEINS   = Basismengeneinheit (Base Unit of Measure)
+  WRBTR   = Betrag (Amount in local currency)
+  WAERS   = Währung (Currency)
+  BLDAT   = Belegdatum (Document Date)
+  TXZ01   = Kurztext (Short Description)
+
+WHAT WE IGNORE: Vendor details (LIFNR), account assignment (KOSTL/AUFNR),
+purchase org (EKORG), storage locations (LGORT). These matter for procurement
+analytics but not for carbon calculation.
+"""
+import csv
+import io
+from decimal import Decimal
+from datetime import date
+
+from .emission_factors import FACTORS
+from .unit_normalizer import normalize_unit, parse_sap_date
+
+
+# Map SAP material numbers/descriptions to our emission factor keys
+# In a real deployment this would be a database table maintained by analysts
+MATERIAL_LOOKUP = {
+    # Material patterns → emission factor key
+    'DIESEL':      'DIESEL',
+    'DIESEL-':     'DIESEL',
+    'HSD':         'HSD',
+    'HIGHSPEED':   'DIESEL',
+    'PETROL':      'PETROL',
+    'GASOIL':      'DIESEL',
+    'LPG':         'LPG',
+    'PNG':         'NATURAL_GAS',
+    'CNG':         'NATURAL_GAS',
+    'NATGAS':      'NATURAL_GAS',
+    'FURNACE':     'FURNACE_OIL',
+    'FUELOIL':     'FURNACE_OIL',
+    # German material descriptions (common in SAP configurations)
+    'DIESEL KRAFTSTOFF': 'DIESEL',
+    'HEIZÖL':            'FURNACE_OIL',
+    'ERDGAS':            'NATURAL_GAS',
+}
+
+# Plant code lookup — in real life, client provides this
+PLANT_LOOKUP = {
+    'PL01': 'Mumbai - Andheri Factory',
+    'PL02': 'Pune - Hinjewadi Facility',
+    'PL03': 'Chennai - Guindy Plant',
+    'PL04': 'Delhi - Okhla Warehouse',
+    'PL05': 'Hyderabad - Uppal Unit',
+    'HO01': 'Head Office - Mumbai',
+}
+
+# These SAP column headers map to our canonical field names
+# SAP can export English or German headers — handle both
+COLUMN_ALIASES = {
+    'MANDT':    'client',
+    'BUKRS':    'company_code',
+    'WERKS':    'plant_code',
+    'MATNR':    'material_number',
+    'MENGE':    'quantity',
+    'MEINS':    'unit',
+    'WRBTR':    'amount',
+    'WAERS':    'currency',
+    'BLDAT':    'document_date',
+    'CPUDT':    'entry_date',
+    'TXZ01':    'description',
+    # English variants (some SAP versions)
+    'PLANT':       'plant_code',
+    'MATERIAL':    'material_number',
+    'QTY':         'quantity',
+    'UOM':         'unit',
+    'DOC_DATE':    'document_date',
+    'SHORT_TEXT':  'description',
+}
+
+
+def _resolve_material(material_number: str, description: str) -> str:
+    """
+    Map a SAP material number or description to an emission factor key.
+    Tries description first (more readable), then material number.
+    Returns None if we can't classify it (will be flagged as suspicious).
+    """
+    search_text = (description or '').upper().replace(' ', '')
+    mat_upper = (material_number or '').upper()
+    
+    for keyword, factor_key in MATERIAL_LOOKUP.items():
+        kw_clean = keyword.upper().replace(' ', '')
+        if kw_clean in search_text or kw_clean in mat_upper:
+            return factor_key
+    
+    return None
+
+
+def _flag_suspicious(quantity: Decimal, unit: str, factor_key: str) -> tuple:
+    """
+    Auto-flag records that look wrong. Returns (is_suspicious, reason).
+    
+    Thresholds are based on realistic enterprise consumption:
+    - A factory using > 100,000 litres diesel in one purchase order is unusual
+    - A generator using < 1 litre per record is probably a test entry
+    - Wrong units for fuel type (e.g. diesel in kWh) is always suspicious
+    """
+    reasons = []
+    
+    # Quantity sanity checks
+    if quantity <= 0:
+        reasons.append(f"Quantity is {quantity} — must be positive")
+    
+    if quantity > 500000:
+        reasons.append(f"Quantity {quantity} is extremely high for a single PO line — verify")
+    
+    # Unit-material mismatch
+    if factor_key in ('DIESEL', 'PETROL', 'LPG', 'HSD', 'FURNACE_OIL'):
+        if unit not in ('LITRE', 'KG', 'M3'):
+            reasons.append(f"Fuel material has unit '{unit}' — expected LITRE/KG/M3")
+    
+    if factor_key == 'NATURAL_GAS' and unit not in ('M3', 'KG'):
+        reasons.append(f"Natural gas has unit '{unit}' — expected M3 or KG")
+    
+    return bool(reasons), '; '.join(reasons)
+
+
+def parse_sap_csv(file_content: str, tenant) -> list:
+    """
+    Main parser entry point.
+    
+    Takes raw CSV content (string), returns list of dicts suitable for
+    creating EmissionRecord objects.
+    
+    Each returned dict includes:
+      - raw_data: the original row (for RawRecord)
+      - normalized fields: scope, category, quantity, unit, co2e_kg, etc.
+      - parse_status and parse_errors
+    """
+    results = []
+    
+    # SAP exports can use pipe (|), semicolon (;), or comma (,) as delimiter
+    # Detect automatically
+    sample = file_content[:500]
+    delimiter = '|' if sample.count('|') > sample.count(',') else (';' if sample.count(';') > sample.count(',') else ',')
+    
+    reader = csv.DictReader(io.StringIO(file_content), delimiter=delimiter)
+    
+    for row_number, row in enumerate(reader, start=2):  # start=2 because row 1 is header
+        raw_data = dict(row)
+        result = {
+            'row_number': row_number,
+            'raw_data': raw_data,
+            'parse_status': 'OK',
+            'parse_errors': [],
+            'source_type': 'SAP_FUEL',
+        }
+        
+        # Normalize column names (SAP German → our English names)
+        normalized_row = {}
+        for col, value in row.items():
+            col_clean = col.strip().upper()
+            canonical = COLUMN_ALIASES.get(col_clean, col_clean.lower())
+            normalized_row[canonical] = (value or '').strip()
+        
+        try:
+            # ── Required fields ───────────────────────────────────
+            plant_code = normalized_row.get('plant_code', '').strip()
+            material_number = normalized_row.get('material_number', '').strip()
+            description = normalized_row.get('description', '').strip()
+            quantity_raw = normalized_row.get('quantity', '0').replace(',', '.')  # German decimal
+            unit_raw = normalized_row.get('unit', '').strip().upper()
+            date_raw = normalized_row.get('document_date', '')
+            
+            if not quantity_raw or not unit_raw or not date_raw:
+                raise ValueError("Missing required fields: quantity, unit, or date")
+            
+            # ── Parse date ────────────────────────────────────────
+            activity_date = parse_sap_date(date_raw)
+            
+            # ── Parse quantity ────────────────────────────────────
+            try:
+                quantity_decimal = Decimal(quantity_raw)
+            except Exception:
+                raise ValueError(f"Cannot parse quantity: '{quantity_raw}'")
+            
+            # ── Normalize unit ────────────────────────────────────
+            try:
+                normalized_qty, normalized_unit, was_converted = normalize_unit(float(quantity_decimal), unit_raw)
+            except ValueError as e:
+                raise ValueError(f"Unit normalization failed: {e}")
+            
+            # ── Classify material → emission factor ───────────────
+            factor_key = _resolve_material(material_number, description)
+            if not factor_key:
+                result['parse_status'] = 'SUSPICIOUS'
+                result['parse_errors'].append(
+                    f"Cannot classify material '{material_number}' ({description}) as a fuel type. "
+                    f"Add to MATERIAL_LOOKUP in sap_parser.py"
+                )
+                results.append(result)
+                continue
+            
+            factor_info = FACTORS[factor_key]
+            
+            # ── Calculate CO2e ────────────────────────────────────
+            co2e_kg = float(normalized_qty) * factor_info['factor']
+            
+            # ── Location ──────────────────────────────────────────
+            location = PLANT_LOOKUP.get(plant_code, f"Unknown Plant: {plant_code}")
+            if plant_code not in PLANT_LOOKUP:
+                result['parse_errors'].append(f"Plant code '{plant_code}' not in lookup table")
+            
+            # ── Suspicious check ──────────────────────────────────
+            is_suspicious, suspicious_reason = _flag_suspicious(normalized_qty, normalized_unit, factor_key)
+            if is_suspicious:
+                result['parse_status'] = 'SUSPICIOUS'
+            
+            result.update({
+                'scope': factor_info['scope'],
+                'category': factor_info['category'],
+                'activity_description': f"{description or factor_key} — {location}",
+                'activity_date': activity_date,
+                'location': location,
+                'quantity': float(normalized_qty),
+                'unit': normalized_unit,
+                'quantity_original': float(quantity_decimal),
+                'unit_original': unit_raw,
+                'emission_factor': factor_info['factor'],
+                'emission_factor_source': 'DEFRA 2024',
+                'co2e_kg': round(co2e_kg, 4),
+                'is_suspicious': is_suspicious,
+                'suspicious_reason': suspicious_reason,
+            })
+            
+        except Exception as e:
+            result['parse_status'] = 'FAILED'
+            result['parse_errors'].append(str(e))
+        
+        results.append(result)
+    
+    return results
