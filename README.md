@@ -12,7 +12,6 @@ A Django + React prototype that ingests emissions data from three enterprise sou
 | analyst | demo1234 | Analyst (Standard demo role) |
 | admin | admin1234 | Admin (Standard demo role) |
 
-**Tenant:** Tata Steel Ltd - India Operations
 
 ---
 
@@ -229,5 +228,3 @@ web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
 | `docs/DECISIONS.md` | Every ambiguity and how it was resolved |
 | `docs/TRADEOFFS.md` | Three deliberate omissions and why |
 | `docs/SOURCES.md` | Research, sample data design, production gaps |
-| `docs/SIMPLE_GUIDE.docx` | Plain-language explanation of the entire project |
-| `docs/TECHNICAL_REFERENCE.docx` | Professional technical reference for evaluators |
