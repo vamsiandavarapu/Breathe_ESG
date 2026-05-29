@@ -87,36 +87,36 @@ const UploadPage = ({ token, tenant }) => {
       <div className="upload-grid">
         {/* Upload Form Panel */}
         <div className="upload-card main-upload-section">
-          <h2>Upload CSV File</h2>
+          <h2>Upload Data File</h2>
           
           <div className="source-selector">
-            <label>Select Enterprise Source:</label>
-            <select value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
-              <option value="SAP_FUEL">🏭 SAP - Fuel & Procurement (Scope 1)</option>
-              <option value="UTILITY_ELECTRICITY">⚡ Utility Portal - Electricity (Scope 2)</option>
-              <option value="TRAVEL_CORPORATE">✈️ Corporate Travel - Concur/Navan (Scope 3)</option>
-            </select>
-          </div>
-
-          <div className="file-upload-box">
-            <input 
-              type="file" 
-              accept=".csv"
-              onChange={handleFileSelect}
-              id="file-input"
-              disabled={uploading}
-            />
-            <label htmlFor="file-input" className="file-label">
-              {selectedFile ? (
-                <span className="selected-file-name">📄 {selectedFile.name}</span>
-              ) : (
-                <>
-                  <span className="file-icon">📁</span>
-                  <span>Choose a CSV file or drag & drop here</span>
-                </>
-              )}
-            </label>
-          </div>
+             <label>Select Enterprise Source:</label>
+             <select value={sourceType} onChange={(e) => setSourceType(e.target.value)}>
+               <option value="SAP_FUEL">🏭 SAP - Fuel & Procurement (Scope 1)</option>
+               <option value="UTILITY_ELECTRICITY">⚡ Utility Portal - Electricity (Scope 2)</option>
+               <option value="TRAVEL_CORPORATE">✈️ Corporate Travel - Concur/Navan (Scope 3)</option>
+             </select>
+           </div>
+ 
+           <div className="file-upload-box">
+             <input 
+               type="file" 
+               accept=".csv,.xml,.txt"
+               onChange={handleFileSelect}
+               id="file-input"
+               disabled={uploading}
+             />
+             <label htmlFor="file-input" className="file-label">
+               {selectedFile ? (
+                 <span className="selected-file-name">📄 {selectedFile.name}</span>
+               ) : (
+                 <>
+                   <span className="file-icon">📁</span>
+                   <span>Choose a file (CSV, XML, TXT) or drag & drop here</span>
+                 </>
+               )}
+             </label>
+           </div>
 
           {uploadMessage && (
             <p className={`message ${uploadMessage.startsWith('✓') ? 'success' : 'error'}`}>
@@ -143,7 +143,7 @@ const UploadPage = ({ token, tenant }) => {
           <div className="info-blocks">
             <div className="info-block">
               <h4>🏭 Scope 1: SAP Fuel</h4>
-              <p>Supports ME2M exports. Detects German locale headers (WERKS, MENGE, BLDAT) and decimal structures (e.g. 1.250,50).</p>
+              <p>Supports flat files (ME2M CSV exports) and IDoc XML files. Detects German locale headers (WERKS, MENGE, BLDAT) and standard SAP segments.</p>
             </div>
             <div className="info-block">
               <h4>⚡ Scope 2: Utility Portal</h4>

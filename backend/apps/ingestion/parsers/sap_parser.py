@@ -31,6 +31,7 @@ analytics but not for carbon calculation.
 """
 import csv
 import io
+import xml.etree.ElementTree as ET
 from decimal import Decimal
 from datetime import date
 
@@ -152,6 +153,11 @@ def parse_sap_csv(file_content: str, tenant) -> list:
       - normalized fields: scope, category, quantity, unit, co2e_kg, etc.
       - parse_status and parse_errors
     """
+    # Auto-detect XML format
+    stripped = file_content.strip()
+    if stripped.startswith('<'):
+        return parse_sap_idoc_xml(file_content, tenant)
+        
     results = []
     
     # SAP exports can use pipe (|), semicolon (;), or comma (,) as delimiter
@@ -263,4 +269,164 @@ def parse_sap_csv(file_content: str, tenant) -> list:
         
         results.append(result)
     
+    return results
+
+
+def parse_sap_idoc_xml(file_content: str, tenant) -> list:
+    """
+    Parses SAP IDoc XML content.
+    Looks for item segments (elements containing quantity and material fields)
+    and header fields (like date, company code) to construct EmissionRecords.
+    """
+    try:
+        root = ET.fromstring(file_content)
+    except Exception as e:
+        raise ValueError(f"XML Parsing Error: {str(e)}")
+    
+    # Helper to recursively find global/header values in the XML
+    def find_global_value(tag_name):
+        for elem in root.iter():
+            tag_clean = elem.tag.split('}')[-1].strip().upper()  # Handle namespaces
+            if tag_clean == tag_name:
+                return (elem.text or '').strip()
+        return ''
+
+    # Get global values if available
+    global_date = find_global_value('BLDAT') or find_global_value('DOC_DATE')
+    global_company = find_global_value('BUKRS') or find_global_value('MANDT')
+    
+    results = []
+    row_counter = 1
+    
+    # We will search for all elements that have a quantity child.
+    item_candidates = []
+    
+    for elem in root.iter():
+        if elem == root:
+            continue
+            
+        tag_clean = elem.tag.split('}')[-1].strip().upper()
+        children_tags = {child.tag.split('}')[-1].strip().upper() for child in elem}
+        has_qty = any(t in children_tags for t in ['MENGE', 'QTY', 'QUANTITY'])
+        has_mat = any(t in children_tags for t in ['MATNR', 'MATERIAL', 'MATERIAL_NUMBER', 'TXZ01', 'DESCRIPTION', 'SHORT_TEXT'])
+        
+        is_standard_segment = tag_clean in ['E1EDP01', 'ZE1EDP01', 'ITEM', 'RECORD']
+        if (has_qty and has_mat) or is_standard_segment:
+            item_candidates.append(elem)
+            
+    # If no nested item candidate segments found, fallback to check if root itself is a single item
+    if not item_candidates:
+        children_tags = {child.tag.split('}')[-1].strip().upper() for child in root}
+        if any(t in children_tags for t in ['MENGE', 'QTY', 'QUANTITY']):
+            item_candidates = [root]
+
+    for item in item_candidates:
+        row_number = row_counter
+        row_counter += 1
+        
+        raw_data = {}
+        for child in item:
+            tag_name = child.tag.split('}')[-1].strip().upper()
+            raw_data[tag_name] = (child.text or '').strip()
+            
+        # Reconstruct full row details including global metadata if missing
+        if 'BLDAT' not in raw_data and 'DOC_DATE' not in raw_data and global_date:
+            raw_data['BLDAT'] = global_date
+        if 'BUKRS' not in raw_data and global_company:
+            raw_data['BUKRS'] = global_company
+            
+        result = {
+            'row_number': row_number,
+            'raw_data': raw_data,
+            'parse_status': 'OK',
+            'parse_errors': [],
+            'source_type': 'SAP_FUEL',
+        }
+        
+        normalized_row = {}
+        for col, value in raw_data.items():
+            col_clean = col.strip().upper()
+            canonical = COLUMN_ALIASES.get(col_clean, col_clean.lower())
+            normalized_row[canonical] = value
+            
+        try:
+            plant_code = normalized_row.get('plant_code', '').strip()
+            material_number = normalized_row.get('material_number', '').strip()
+            description = normalized_row.get('description', '').strip()
+            quantity_raw = normalized_row.get('quantity', '0').replace(',', '.')
+            unit_raw = normalized_row.get('unit', '').strip().upper()
+            date_raw = normalized_row.get('document_date', '')
+            
+            if not quantity_raw or not unit_raw or not date_raw:
+                raise ValueError("Missing required fields: quantity, unit, or date")
+                
+            activity_date = parse_sap_date(date_raw)
+            
+            try:
+                quantity_decimal = Decimal(quantity_raw)
+            except Exception:
+                raise ValueError(f"Cannot parse quantity: '{quantity_raw}'")
+                
+            try:
+                normalized_qty, normalized_unit, was_converted = normalize_unit(float(quantity_decimal), unit_raw)
+            except ValueError as e:
+                raise ValueError(f"Unit normalization failed: {e}")
+                
+            factor_key = _resolve_material(material_number, description)
+            if not factor_key:
+                result['parse_status'] = 'SUSPICIOUS'
+                result['parse_errors'].append(
+                    f"Cannot classify material '{material_number}' ({description}) as a fuel type. "
+                    f"Add to MATERIAL_LOOKUP in sap_parser.py"
+                )
+                factor_info = {
+                    'factor': 0.0,
+                    'scope': 'SCOPE_1',
+                    'category': 'STATIONARY_COMBUSTION'
+                }
+                display_factor_key = 'UNCLASSIFIED'
+            else:
+                factor_info = FACTORS[factor_key]
+                display_factor_key = factor_key
+                
+            co2e_kg = float(normalized_qty) * factor_info['factor']
+            
+            location = PLANT_LOOKUP.get(plant_code, f"Unknown Plant: {plant_code}")
+            if plant_code not in PLANT_LOOKUP:
+                result['parse_errors'].append(f"Plant code '{plant_code}' not in lookup table")
+                
+            is_suspicious, suspicious_reason = _flag_suspicious(normalized_qty, normalized_unit, factor_key or 'DIESEL')
+            if not factor_key:
+                is_suspicious = True
+                suspicious_reason = f"Cannot classify material '{material_number}' as a fuel type; " + suspicious_reason
+                result['parse_status'] = 'SUSPICIOUS'
+            elif is_suspicious:
+                result['parse_status'] = 'SUSPICIOUS'
+                
+            result.update({
+                'scope': factor_info['scope'],
+                'category': factor_info['category'],
+                'activity_description': f"{description or display_factor_key} — {location}",
+                'activity_date': activity_date,
+                'location': location,
+                'quantity': float(normalized_qty),
+                'unit': normalized_unit,
+                'quantity_original': float(quantity_decimal),
+                'unit_original': unit_raw,
+                'emission_factor': factor_info['factor'],
+                'emission_factor_source': 'DEFRA 2024',
+                'co2e_kg': round(co2e_kg, 4),
+                'is_suspicious': is_suspicious,
+                'suspicious_reason': suspicious_reason,
+            })
+            
+        except Exception as e:
+            result['parse_status'] = 'FAILED'
+            result['parse_errors'].append(str(e))
+            
+        results.append(result)
+        
+    if not results:
+        raise ValueError("No valid SAP IDoc data segments found in XML")
+        
     return results

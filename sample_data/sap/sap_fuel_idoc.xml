@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IDOC>
+    <!-- Header/Control Segment -->
+    <E1EDK01>
+        <MANDT>100</MANDT>
+        <BUKRS>HO01</BUKRS>
+        <BLDAT>2026-05-29</BLDAT>
+    </E1EDK01>
+    
+    <!-- Item Segment 1: Diesel fuel for generators (Scope 1, Stationary Combustion) -->
+    <E1EDP01>
+        <WERKS>PL01</WERKS>
+        <MATNR>DIESEL</MATNR>
+        <MENGE>2500.00</MENGE>
+        <MEINS>L</MEINS>
+        <WRBTR>225000.00</WRBTR>
+        <WAERS>INR</WAERS>
+        <TXZ01>Diesel fuel for back-up generators</TXZ01>
+    </E1EDP01>
+
+    <!-- Item Segment 2: Petrol for logistics (Scope 1, Mobile Combustion) -->
+    <E1EDP01>
+        <WERKS>PL02</WERKS>
+        <MATNR>PETROL</MATNR>
+        <MENGE>850.50</MENGE>
+        <MEINS>L</MEINS>
+        <WRBTR>85000.00</WRBTR>
+        <WAERS>INR</WAERS>
+        <TXZ01>Petrol for company fleet vehicles</TXZ01>
+    </E1EDP01>
+
+    <!-- Item Segment 3: Natural Gas (Scope 1, Stationary Combustion) -->
+    <E1EDP01>
+        <WERKS>PL03</WERKS>
+        <MATNR>CNG</MATNR>
+        <MENGE>1200.00</MENGE>
+        <MEINS>KG</MEINS>
+        <WRBTR>90000.00</WRBTR>
+        <WAERS>INR</WAERS>
+        <TXZ01>CNG pipeline gas supply</TXZ01>
+    </E1EDP01>
+</IDOC>
