@@ -37,7 +37,7 @@ for u in [analyst, admin_user, saurav, rahul_user, shivang]:
 for user_obj in [analyst, rahul_user, shivang]:
     # Analyst access
     Tenant.objects.get_or_create(user=user_obj, slug='tata-steel-india', defaults={'name': 'Tata Steel Ltd - India Operations', 'industry': 'Steel Manufacturing', 'country': 'India', 'reporting_year': 2024, 'role': 'analyst'})
-    Tenant.objects.get_or_create(user=user_obj, slug='infosys-ltd', defaults={'name': 'Infosys Ltd - Corporate', 'industry': 'Information Technology', 'country': 'India', 'reporting_year': 2024, 'role': 'viewer'})
+    Tenant.objects.get_or_create(user=user_obj, slug='infosys-ltd', defaults={'name': 'Infosys Ltd - Corporate', 'industry': 'Information Technology', 'country': 'India', 'reporting_year': 2024, 'role': 'analyst'})
 
 for admin_obj in [admin_user, saurav]:
     # Admin access
