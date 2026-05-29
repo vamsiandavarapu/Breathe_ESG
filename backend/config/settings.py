@@ -114,3 +114,7 @@ CORS_ALLOW_CREDENTIALS = True
 # File upload limits — 50MB max for SAP/utility dumps
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
+CSRF_TRUSTED_ORIGINS = [
+    "https://pretty-possibility-production-6964.up.railway.app",
+    "https://breatheesg-production-8425.up.railway.app",  # add other Railway domains if needed
+]
