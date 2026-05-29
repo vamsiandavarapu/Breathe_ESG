@@ -86,7 +86,6 @@ const Navigation = ({ user, tenant, onLogout }) => {
         <Link to="/upload" style={{ color: location.pathname === '/upload' ? '#667eea' : '#333', fontWeight: location.pathname === '/upload' ? '600' : '400' }}>Upload</Link>
       </div>
       <div className="nav-user">
-        <span>{user?.username} @ {tenant?.name}</span>
         <button onClick={onLogout} className="logout-btn">Logout</button>
       </div>
     </nav>
