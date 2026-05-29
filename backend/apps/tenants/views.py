@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from .models import Tenant, TenantMembership
+from .models import Tenant
 
 
 class LoginView(APIView):
@@ -14,19 +14,19 @@ class LoginView(APIView):
         if not user:
             return Response({'error': 'Invalid credentials'}, status=401)
         token, _ = Token.objects.get_or_create(user=user)
-        memberships = TenantMembership.objects.filter(user=user).select_related('tenant')
+        tenants = Tenant.objects.filter(user=user)
         return Response({
             'token': token.key,
             'user': {'id': user.id, 'username': user.username, 'email': user.email},
-            'tenants': [{'id': m.tenant.id, 'name': m.tenant.name, 'role': m.role} for m in memberships],
+            'tenants': [{'id': t.id, 'name': t.name, 'role': t.role} for t in tenants],
         })
 
 
 class TenantListView(APIView):
     def get(self, request):
-        memberships = TenantMembership.objects.filter(user=request.user).select_related('tenant')
+        tenants = Tenant.objects.filter(user=request.user)
         return Response([{
-            'id': m.tenant.id, 'name': m.tenant.name,
-            'industry': m.tenant.industry, 'country': m.tenant.country,
-            'reporting_year': m.tenant.reporting_year, 'role': m.role,
-        } for m in memberships])
+            'id': t.id, 'name': t.name,
+            'industry': t.industry, 'country': t.country,
+            'reporting_year': t.reporting_year, 'role': t.role,
+        } for t in tenants])

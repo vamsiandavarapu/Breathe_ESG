@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
@@ -11,7 +10,6 @@ def health_check(request):
 
 urlpatterns = [
     path('', health_check),
-    path('admin/', admin.site.urls),
     path('api/', include('apps.tenants.urls')),
     path('api/', include('apps.ingestion.urls')),
     path('api/', include('apps.emissions.urls')),

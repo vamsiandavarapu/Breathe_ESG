@@ -4,10 +4,11 @@ python manage.py shell < seed_data.py
 """
 import os, sys, django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+django.setup()
 
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
-from apps.tenants.models import Tenant, TenantMembership
+from apps.tenants.models import Tenant
 from apps.emissions.models import IngestionJob, RawRecord, EmissionRecord, AuditLog
 import csv, sys
 
@@ -23,15 +24,12 @@ for u in [analyst, admin_user]:
     Token.objects.get_or_create(user=u)
 
 # Tenants
-t1, _ = Tenant.objects.get_or_create(slug='tata-steel-india', defaults={'name': 'Tata Steel Ltd - India Operations', 'industry': 'Steel Manufacturing', 'country': 'India', 'reporting_year': 2024})
-t2, _ = Tenant.objects.get_or_create(slug='infosys-ltd', defaults={'name': 'Infosys Ltd - Corporate', 'industry': 'Information Technology', 'country': 'India', 'reporting_year': 2024})
+t1, _ = Tenant.objects.get_or_create(user=analyst, slug='tata-steel-india', defaults={'name': 'Tata Steel Ltd - India Operations', 'industry': 'Steel Manufacturing', 'country': 'India', 'reporting_year': 2024, 'role': 'analyst'})
+t2, _ = Tenant.objects.get_or_create(user=analyst, slug='infosys-ltd', defaults={'name': 'Infosys Ltd - Corporate', 'industry': 'Information Technology', 'country': 'India', 'reporting_year': 2024, 'role': 'viewer'})
 
-# Memberships
-TenantMembership.objects.get_or_create(user=analyst, tenant=t1, defaults={'role': 'analyst'})
-TenantMembership.objects.get_or_create(user=analyst, tenant=t2, defaults={'role': 'viewer'})
-TenantMembership.objects.get_or_create(user=admin_user, tenant=t1, defaults={'role': 'admin'})
-TenantMembership.objects.get_or_create(user=admin_user, tenant=t2, defaults={'role': 'admin'})
+t1_admin, _ = Tenant.objects.get_or_create(user=admin_user, slug='tata-steel-india', defaults={'name': 'Tata Steel Ltd - India Operations', 'industry': 'Steel Manufacturing', 'country': 'India', 'reporting_year': 2024, 'role': 'admin'})
+t2_admin, _ = Tenant.objects.get_or_create(user=admin_user, slug='infosys-ltd', defaults={'name': 'Infosys Ltd - Corporate', 'industry': 'Information Technology', 'country': 'India', 'reporting_year': 2024, 'role': 'admin'})
 
 print(f"Setup complete. Tenants: {Tenant.objects.count()}, Users: {User.objects.count()}")
 print(f"Login: analyst / demo1234  |  admin / admin1234")
-print(f"Tenant IDs: Tata Steel={t1.id}, Infosys={t2.id}")
+print(f"Tenant IDs: Tata Steel (Analyst)={t1.id}, Infosys (Analyst)={t2.id}")

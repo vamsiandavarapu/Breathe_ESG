@@ -1,10 +1,13 @@
 from django.test import TestCase
+from django.contrib.auth.models import User
 from apps.tenants.models import Tenant
 from apps.ingestion.parsers.sap_parser import parse_sap_csv
 
 class SAPParserTestCase(TestCase):
     def setUp(self):
+        self.user = User.objects.create_user(username="testanalyst", password="password123")
         self.tenant = Tenant.objects.create(
+            user=self.user,
             name="Test Corporate Tenant",
             slug="test-corporate-tenant",
             industry="Manufacturing"
