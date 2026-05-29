@@ -5,8 +5,7 @@ import './App.css';
 import Dashboard from './pages/Dashboard';
 import ReviewPage from './pages/ReviewPage';
 import UploadPage from './pages/UploadPage';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import API_BASE_URL from './apiConfig';
 
 const LoginPage = ({ onLogin, setToken, setTenant, setUser }) => {
   const [username, setUsername] = useState('analyst');

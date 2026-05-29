@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/ReviewPage.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import API_BASE_URL from '../apiConfig';
 
 const ReviewPage = ({ token, tenant }) => {
   const [records, setRecords] = useState([]);
