@@ -8,8 +8,8 @@ import UploadPage from './pages/UploadPage';
 import API_BASE_URL from './apiConfig';
 
 const LoginPage = ({ onLogin, setToken, setTenant, setUser }) => {
-  const [username, setUsername] = useState('analyst');
-  const [password, setPassword] = useState('demo1234');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -67,11 +67,6 @@ const LoginPage = ({ onLogin, setToken, setTenant, setUser }) => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <div className="demo-info">
-          <p><strong>Demo Credentials:</strong></p>
-          <p>👤 analyst / demo1234</p>
-          <p>👤 admin / admin1234</p>
-        </div>
       </div>
     </div>
   );
