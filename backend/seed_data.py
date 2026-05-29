@@ -13,7 +13,7 @@ from apps.emissions.models import IngestionJob, RawRecord, EmissionRecord, Audit
 import csv, sys
 
 # Users
-analyst, _ = User.objects.get_or_create(username='analyst', defaults={'email': 'analyst@breatheesg.com', 'first_name': 'Priya', 'last_name': 'Sharma'})
+analyst, _ = User.objects.get_or_create(username='analyst', defaults={'email': 'analyst@breatheesg.com', 'first_name': 'Priya', 'last_name': 'Sharma','is_staff': True})
 analyst.set_password('demo1234'); analyst.save()
 
 admin_user, _ = User.objects.get_or_create(username='admin', defaults={'email': 'admin@breatheesg.com', 'first_name': 'Rahul', 'last_name': 'Mehta', 'is_staff': True})
@@ -23,10 +23,10 @@ admin_user.set_password('admin1234'); admin_user.save()
 saurav, _ = User.objects.get_or_create(username='saurav', defaults={'email': 'saurav@breatheesg.com', 'first_name': 'Saurav', 'last_name': 'ESG', 'is_staff': True})
 saurav.set_password('demo1234'); saurav.save()
 
-rahul_user, _ = User.objects.get_or_create(username='rahul', defaults={'email': 'rahul@breatheesg.com', 'first_name': 'Rahul', 'last_name': 'ESG'})
+rahul_user, _ = User.objects.get_or_create(username='rahul', defaults={'email': 'rahul@breatheesg.com', 'first_name': 'Rahul', 'last_name': 'ESG','is_staff': True})
 rahul_user.set_password('demo1234'); rahul_user.save()
 
-shivang, _ = User.objects.get_or_create(username='shivang', defaults={'email': 'shivang@breatheesg.com', 'first_name': 'Shivang', 'last_name': 'ESG'})
+shivang, _ = User.objects.get_or_create(username='shivang', defaults={'email': 'shivang@breatheesg.com', 'first_name': 'Shivang', 'last_name': 'ESG','is_staff': True})
 shivang.set_password('demo1234'); shivang.save()
 
 # Tokens

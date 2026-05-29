@@ -33,9 +33,9 @@ class UploadView(APIView):
         if not all([tenant_id, source_type, uploaded_file]):
             return Response({'error': 'tenant_id, source_type, and file are required'}, status=400)
 
-        # Enforce multi-tenancy verification & RBAC (admin/analyst required to upload data)
+        # Enforce multi-tenancy verification — all tenant members can upload
         is_allowed, membership_or_err = verify_tenant_access(
-            request.user, tenant_id, allowed_roles=['admin', 'analyst']
+            request.user, tenant_id, allowed_roles=['admin', 'analyst', 'viewer']
         )
         if not is_allowed:
             return Response({'error': membership_or_err}, status=403)
