@@ -1,2 +1,1 @@
-web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
-gunicorn main:app
+web: cd backend && python manage.py migrate && python manage.py shell < seed_data.py && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2

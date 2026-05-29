@@ -9,7 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 
 from apps.emissions.models import IngestionJob, RawRecord, EmissionRecord, AuditLog
-from apps.tenants.models import Tenant
+from apps.tenants.models import Tenant, verify_tenant_access
 from .parsers.sap_parser import parse_sap_csv
 from .parsers.utility_parser import parse_utility_csv
 from .parsers.travel_parser import parse_travel_csv
@@ -32,6 +32,13 @@ class UploadView(APIView):
 
         if not all([tenant_id, source_type, uploaded_file]):
             return Response({'error': 'tenant_id, source_type, and file are required'}, status=400)
+
+        # Enforce multi-tenancy verification & RBAC (admin/analyst required to upload data)
+        is_allowed, membership_or_err = verify_tenant_access(
+            request.user, tenant_id, allowed_roles=['admin', 'analyst']
+        )
+        if not is_allowed:
+            return Response({'error': membership_or_err}, status=403)
 
         if source_type not in PARSER_MAP:
             return Response({'error': f'Unknown source_type: {source_type}'}, status=400)
@@ -131,5 +138,35 @@ class UploadView(APIView):
             job.error_summary = [str(e)]
             job.save()
             return Response({'error': str(e)}, status=500)
+
+
+class JobListView(APIView):
+    """Retrieves past ingestion jobs for a tenant with full security validation."""
+    
+    def get(self, request):
+        tenant_id = request.query_params.get('tenant_id')
+        if not tenant_id:
+            return Response({'error': 'tenant_id is required'}, status=400)
+            
+        # Verify tenant access (viewers are allowed to see history)
+        is_allowed, membership_or_err = verify_tenant_access(request.user, tenant_id)
+        if not is_allowed:
+            return Response({'error': membership_or_err}, status=403)
+            
+        jobs = IngestionJob.objects.filter(tenant_id=tenant_id).select_related('uploaded_by').order_by('-uploaded_at')
+        return Response([{
+            'id': j.id,
+            'source_type': j.source_type,
+            'source_type_label': j.get_source_type_display(),
+            'file_name': j.file_name,
+            'uploaded_by': j.uploaded_by.username if j.uploaded_by else 'System',
+            'uploaded_at': j.uploaded_at.isoformat(),
+            'status': j.status,
+            'total_rows': j.total_rows,
+            'success_rows': j.success_rows,
+            'failed_rows': j.failed_rows,
+            'suspicious_rows': j.suspicious_rows,
+            'error_summary': j.error_summary,
+        } for j in jobs])
 
 

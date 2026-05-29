@@ -47,3 +47,25 @@ class TenantMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.tenant.name} ({self.role})"
+
+
+def verify_tenant_access(user, tenant_id, allowed_roles=None):
+    """
+    Validates if the user belongs to the specified tenant and has one of the allowed roles.
+    Returns:
+        (True, TenantMembership) if allowed.
+        (False, error_message) if denied.
+    """
+    if not user or not user.is_authenticated:
+        return False, "Authentication required"
+    if not tenant_id:
+        return False, "tenant_id is required"
+    
+    try:
+        membership = TenantMembership.objects.get(user=user, tenant_id=tenant_id)
+        if allowed_roles and membership.role not in allowed_roles:
+            return False, f"Permission denied: role '{membership.role}' is not authorized for this action."
+        return True, membership
+    except TenantMembership.DoesNotExist:
+        return False, "Permission denied: you do not have access to this tenant's data."
+

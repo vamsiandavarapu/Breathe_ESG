@@ -213,10 +213,15 @@ def parse_sap_csv(file_content: str, tenant) -> list:
                     f"Cannot classify material '{material_number}' ({description}) as a fuel type. "
                     f"Add to MATERIAL_LOOKUP in sap_parser.py"
                 )
-                results.append(result)
-                continue
-            
-            factor_info = FACTORS[factor_key]
+                factor_info = {
+                    'factor': 0.0,
+                    'scope': 'SCOPE_1',
+                    'category': 'STATIONARY_COMBUSTION'
+                }
+                display_factor_key = 'UNCLASSIFIED'
+            else:
+                factor_info = FACTORS[factor_key]
+                display_factor_key = factor_key
             
             # ── Calculate CO2e ────────────────────────────────────
             co2e_kg = float(normalized_qty) * factor_info['factor']
@@ -227,14 +232,18 @@ def parse_sap_csv(file_content: str, tenant) -> list:
                 result['parse_errors'].append(f"Plant code '{plant_code}' not in lookup table")
             
             # ── Suspicious check ──────────────────────────────────
-            is_suspicious, suspicious_reason = _flag_suspicious(normalized_qty, normalized_unit, factor_key)
-            if is_suspicious:
+            is_suspicious, suspicious_reason = _flag_suspicious(normalized_qty, normalized_unit, factor_key or 'DIESEL')
+            if not factor_key:
+                is_suspicious = True
+                suspicious_reason = f"Cannot classify material '{material_number}' as a fuel type; " + suspicious_reason
+                result['parse_status'] = 'SUSPICIOUS'
+            elif is_suspicious:
                 result['parse_status'] = 'SUSPICIOUS'
             
             result.update({
                 'scope': factor_info['scope'],
                 'category': factor_info['category'],
-                'activity_description': f"{description or factor_key} — {location}",
+                'activity_description': f"{description or display_factor_key} — {location}",
                 'activity_date': activity_date,
                 'location': location,
                 'quantity': float(normalized_qty),

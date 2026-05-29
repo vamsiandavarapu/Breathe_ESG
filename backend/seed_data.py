@@ -10,7 +10,6 @@ from rest_framework.authtoken.models import Token
 from apps.tenants.models import Tenant, TenantMembership
 from apps.emissions.models import IngestionJob, RawRecord, EmissionRecord, AuditLog
 import csv, sys
-sys.path.insert(0, '/home/claude/breathe-esg/backend')
 
 # Users
 analyst, _ = User.objects.get_or_create(username='analyst', defaults={'email': 'analyst@breatheesg.com', 'first_name': 'Priya', 'last_name': 'Sharma'})

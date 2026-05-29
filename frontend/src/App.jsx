@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 import Dashboard from './pages/Dashboard';
@@ -86,9 +86,9 @@ const Navigation = ({ user, tenant, onLogout }) => {
         <span>🌿 Breathe ESG</span>
       </div>
       <div className="nav-links">
-        <a href="/dashboard" style={{ color: location.pathname === '/dashboard' ? '#667eea' : '#333' }}>Dashboard</a>
-        <a href="/review" style={{ color: location.pathname === '/review' ? '#667eea' : '#333' }}>Review</a>
-        <a href="/upload" style={{ color: location.pathname === '/upload' ? '#667eea' : '#333' }}>Upload</a>
+        <Link to="/dashboard" style={{ color: location.pathname === '/dashboard' || location.pathname === '/' ? '#667eea' : '#333', fontWeight: location.pathname === '/dashboard' || location.pathname === '/' ? '600' : '400' }}>Dashboard</Link>
+        <Link to="/review" style={{ color: location.pathname === '/review' ? '#667eea' : '#333', fontWeight: location.pathname === '/review' ? '600' : '400' }}>Review</Link>
+        <Link to="/upload" style={{ color: location.pathname === '/upload' ? '#667eea' : '#333', fontWeight: location.pathname === '/upload' ? '600' : '400' }}>Upload</Link>
       </div>
       <div className="nav-user">
         <span>{user?.username} @ {tenant?.name}</span>

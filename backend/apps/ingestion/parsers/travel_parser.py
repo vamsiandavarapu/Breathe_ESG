@@ -283,6 +283,23 @@ def parse_travel_csv(file_content: str, tenant) -> list:
             else:
                 result['parse_status'] = 'SUSPICIOUS'
                 result['parse_errors'].append(f"Unknown expense type: '{expense_type_raw}'. Skipped CO2 calculation.")
+                # Supply default fallbacks so EmissionRecord can be created and reviewed/edited in UI
+                result.update({
+                    'scope': 'SCOPE_3',
+                    'category': 'BUSINESS_TRAVEL_GROUND',
+                    'activity_description': f"Unknown Expense: {expense_type_raw} — {employee}",
+                    'activity_date': activity_date,
+                    'location': col.get('city') or '',
+                    'quantity': 0.0,
+                    'unit': 'KM',
+                    'quantity_original': 0.0,
+                    'unit_original': '',
+                    'emission_factor': 0.0,
+                    'emission_factor_source': 'None',
+                    'co2e_kg': 0.0,
+                    'is_suspicious': True,
+                    'suspicious_reason': f"Unknown expense type: '{expense_type_raw}'",
+                })
         
         except Exception as e:
             result['parse_status'] = 'FAILED'
