@@ -5,12 +5,11 @@
 **Decision:** Pipe-delimited flat file (ME2M / SE16N export), not IDoc, OData, or BAPI.
 
 **Why:**
-- IDoc requires SAP middleware (XI/PI/CPI). Most clients do not have an exposed integration layer. Configuring one is a weeks-long IT project.
-- OData (SAP Gateway) requires firewall exceptions, SSL certificates, and SAP Basis configuration. Same problem.
-- BAPI calls require RFC connections — again, an IT project with security implications.
-- Flat file: a client's SAP administrator opens transaction SE16N, selects table EKPO or runs ME2M, and clicks Export. Takes 5 minutes. Zero IT dependency.
+*   **Zero IT Dependency:** Setting up live IDocs, OData gateways, or BAPI triggers requires weeks of enterprise firewall approvals, технические technical user setups, and security reviews at a client.
+*   **Simple Onboarding:** Any client SAP administrator can run transaction `ME2M` (Purchase Orders) or `SE16N` (table `EKPO`), download a pipe-delimited CSV, and upload it in 5 minutes.
+*   **Reliable and Cheap:** A flat file is extremely cheap to parse, easy to debug, and works out-of-the-box on day one.
 
-**What I'd ask the PM:** "Does the client have an SAP Basis team available, and are they willing to set up an OData service? If yes, we should move to OData for automated pulls rather than manual file drops."
+**What I'd ask the PM:** "Does the client have a Basis team willing to automate a secure daily SFTP drop of this flat file? If so, we can automate the ingestion without waiting for complex API integrations."
 
 **What I ignored in SAP:** Vendor codes (LIFNR), account assignment objects (cost center KOSTL / order AUFNR), purchasing organization (EKORG), storage location (LGORT). These are critical for full procurement analytics but irrelevant for Scope 1 carbon calculation. We only need: material, quantity, unit, plant, date.
 

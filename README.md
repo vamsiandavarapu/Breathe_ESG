@@ -4,12 +4,15 @@ A Django + React prototype that ingests emissions data from three enterprise sou
 
 ## Demo Credentials
 
-| Username | Password | Role |
-|----------|----------|------|
-| analyst | demo1234 | Analyst (review + approve) |
-| admin | admin1234 | Admin (all access) |
+| Username (Email) | Password | Role |
+|------------------|----------|------|
+| **saurav** (`saurav@breatheesg.com`) | demo1234 | Admin (All access) |
+| **rahul** (`rahul@breatheesg.com`) | demo1234 | Analyst (Review + approve) |
+| **shivang** (`shivang@breatheesg.com`) | demo1234 | Analyst (Review + approve) |
+| analyst | demo1234 | Analyst (Standard demo role) |
+| admin | admin1234 | Admin (Standard demo role) |
 
-**Tenant:** Tata Steel Ltd - India Operations (ID: 1)
+**Tenant:** Tata Steel Ltd - India Operations
 
 ---
 

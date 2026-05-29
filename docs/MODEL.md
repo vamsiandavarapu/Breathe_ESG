@@ -15,8 +15,7 @@ Every other design decision flows from this.
 ## Entity Overview
 
 ```
-Tenant
-├── TenantMembership (User ↔ Tenant with role)
+Tenant (with User and Role directly associated)
 └── IngestionJob (one per file upload)
     └── RawRecord (one per CSV row — IMMUTABLE)
         └── EmissionRecord (normalized, analyst-facing)
@@ -27,11 +26,11 @@ Tenant
 
 ## Multi-Tenancy
 
-**How it works:** Every model (IngestionJob, RawRecord, EmissionRecord) has a direct FK to Tenant. API views filter by `tenant_id` from query params, validated against the authenticated user's `TenantMembership`. A user with access to Tenant A cannot retrieve Tenant B's data.
+**How it works:** Every model (IngestionJob, RawRecord, EmissionRecord) has a direct FK to `Tenant`. API views filter by `tenant_id` from query params, validated against the authenticated user's access via `verify_tenant_access`. A user with access to Tenant A cannot retrieve Tenant B's data.
 
 **Why direct FK instead of schema-per-tenant:** Schema-per-tenant is overkill for a prototype and complicates Django ORM queries. Row-level isolation with a properly indexed `tenant_id` column is adequate for enterprise ESG volumes (tens of thousands of records per year, not millions).
 
-**TenantMembership roles:**
+**Tenant roles (defined directly on the Tenant relationship):**
 - `admin` — manage ingestion jobs, approve records, manage users
 - `analyst` — review and approve records
 - `viewer` — read-only access to approved records

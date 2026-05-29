@@ -39,10 +39,8 @@ MANDT|BUKRS|WERKS|MATNR|MENGE|MEINS|WRBTR|WAERS|BLDAT|TXZ01
 
 ### What would break in a real deployment
 
-- **Material master not provided:** Real SAP systems have thousands of material numbers. Our MATERIAL_LOOKUP has ~15 patterns. A client might have materials like `10000123` with description `FUEL OIL TYPE A` that does not match any keyword. We would need the client to provide a mapping table: material number → fuel type.
-- **Plant master not provided:** Our PLANT_LOOKUP has 6 plant codes. A real client might have 200 plants across India. Every unknown plant code generates a parse warning. The client must provide a plant-to-location CSV.
-- **Thousand separator in German locale:** German SAP uses period as thousand separator (1.000,50 = one thousand point five). Our parser does `.replace(",", ".")` which would mishandle this. Production parser needs locale-aware decimal handling.
-- **Multi-company code exports:** Large groups export data across multiple BUKRS (company codes). We treat all company codes from one file as one tenant, which may be wrong if the group has separate legal entities needing separate carbon reporting.
+- **New Material/Plant Codes:** A real company has thousands of codes. We would need a master mapping list (e.g. Code → Fuel Type) rather than hardcoded rules.
+- **Locale separation:** German SAP formats use `.` for thousands and `,` for decimals (e.g., `1.000,50`). Production needs locale-aware number parsing.
 
 ---
 
@@ -81,10 +79,8 @@ ACC-MH-001236,MTR-HO01-LT,01/01/2024,31/01/2024,0,0,...
 
 ### What would break in a real deployment
 
-- **Multi-state utilities:** A national company might have bills from 12 different state utilities. Each has different CSV formats. We would need a column mapping profile per utility.
-- **Bi-monthly billing:** Some utilities (especially in rural areas) read meters every two months. Our parser handles billing periods up to 90 days, but would flag a 60-day period as suspicious due to the >90-day check. The thresholds need to be configurable.
-- **Maximum demand charges:** Some tariff structures bill in kVA (kilovolt-amperes, reactive power) not kW. Consumption in kVAh is not directly comparable to kWh. We assumed all consumption is active energy (kWh), which is correct for most HT industrial tariffs.
-- **Net metering:** If a facility has rooftop solar with net metering, the bill shows net consumption (import minus export). We would need gross import figure for accurate Scope 2 reporting.
+- **Too many state utilities:** Different state boards (e.g. BESCOM vs MSEDCL) use slightly different CSV column headers. Production needs custom column mapping templates.
+- **Net Metering (Solar):** If a facility has solar panels, the bill shows net consumption (imports minus exports). Accurate Scope 2 reporting needs gross imports.
 
 ---
 
@@ -131,8 +127,6 @@ RPT-007,EMP-107,2024-02-01,Air Travel,DEL,LHR,,89000,INR,British Airways,First,,
 
 ### What would break in a real deployment
 
-- **Airport code not in our database:** We have 14 airports. The real world has ~10,000 IATA codes. A flight through Kochi (COK), Coimbatore (CJB), or Guwahati (GAU) would fail with "Unknown airport code." Production would use the full OurAirports.com dataset (free, open data, ~10,000 airports with coordinates).
-- **Freetext origin/destination:** Some Concur configurations record "Mumbai" instead of "BOM". Mapping city names to IATA codes requires a fuzzy match or a lookup table with hundreds of entries per country.
-- **Multi-leg trips:** A trip from Hyderabad to London via Dubai is three expense rows (HYD→DXB, DXB→LHR, hotel in London) under one Report ID. We process each row independently. We do not currently aggregate multi-leg trips into a journey.
-- **Currency conversion:** All amounts are in INR in our sample. In practice, employees file expenses in local currency (GBP for UK trips, USD for US trips). The amount is recorded in the transaction currency. If we were using amounts to estimate ground distances, we would need FX conversion.
-- **Personal travel tacked on:** An employee who extends a business trip by 2 personal days would have the full flight cost reimbursed but only part of the hotel nights are business travel. We attribute all nights to business travel, which overstates Scope 3.
+- **Missing Airport IATA codes:** We support the major airport codes. A real system would need a complete database of all global IATA codes.
+- **Freetext locations:** If Concur records "Mumbai" instead of "BOM", we would need a city-to-airport mapping table.
+- **Foreign Currencies:** Employees file expenses in local currencies (USD, GBP). Production needs automated currency conversion rates.
