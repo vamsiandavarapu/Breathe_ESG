@@ -5,8 +5,6 @@ Production-ready with SQLite for demo, easy to swap to PostgreSQL.
 import os
 from pathlib import Path
 
-import dj_database_url
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'breathe-esg-dev-secret-key-change-in-production')
@@ -60,6 +58,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 if DATABASE_URL:
+    import dj_database_url
     DATABASES = {
         'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
